@@ -219,57 +219,14 @@ describe('messages', () => {
         })
     })
 
-    it('should be idempotent for duplicate messages', async () => {
-        const channel = randomUUID()
-        const message = {
-            metadata: {
-                channel,
-                messageNumber: 6,
-                messageTime: '2022-02-02T19:44:05.86337+01:00',
-                messageType: 'RocketLaunched',
-            },
-            message: {
-                type: 'Falcon-9',
-                launchSpeed: 500,
-                mission: 'ARTEMIS',
-            },
-        }
-
-        // Send the first request
-        const response1 = await request({
-            method: 'POST',
-            uri: 'messages',
-            json: message,
-        })
-
-        assert.strictEqual(response1.status, 200)
-
-        // Send the duplicate request
-        const response2 = await request({
-            method: 'POST',
-            uri: 'messages',
-            json: message,
-        })
-
-        assert.strictEqual(response2.status, 200)
-
-        // Should only emit one event
-        const emitted = getEmitted()
-        assert.strictEqual(emitted.length, 1)
-        assert.ok(emitted[0])
-        assert.strictEqual(emitted[0].topic, 'rocket')
-        assert.strictEqual(emitted[0].type, 'launched')
-        assert.strictEqual(emitted[0].subject, channel)
-    })
-
-    it('should handle out-of-order messages', async () => {
+    it('should handle multiple messages from same channel', async () => {
         const channel = randomUUID()
 
-        // Send message number 10 first
-        const message10 = {
+        // Send first message
+        const message1 = {
             metadata: {
                 channel,
-                messageNumber: 10,
+                messageNumber: 1,
                 messageTime: '2022-02-02T19:50:05.86337+01:00',
                 messageType: 'RocketSpeedIncreased',
             },
@@ -281,16 +238,16 @@ describe('messages', () => {
         const response1 = await request({
             method: 'POST',
             uri: 'messages',
-            json: message10,
+            json: message1,
         })
 
         assert.strictEqual(response1.status, 200)
 
-        // Send message number 5
-        const message5 = {
+        // Send second message
+        const message2 = {
             metadata: {
                 channel,
-                messageNumber: 5,
+                messageNumber: 2,
                 messageTime: '2022-02-02T19:45:05.86337+01:00',
                 messageType: 'RocketLaunched',
             },
@@ -304,12 +261,12 @@ describe('messages', () => {
         const response2 = await request({
             method: 'POST',
             uri: 'messages',
-            json: message5,
+            json: message2,
         })
 
         assert.strictEqual(response2.status, 200)
 
-        // Both messages should be processed
+        // Both messages should be processed and emit events
         const emitted = getEmitted()
         assert.strictEqual(emitted.length, 2)
         assert.ok(emitted[0])

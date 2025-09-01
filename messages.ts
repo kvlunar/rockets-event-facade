@@ -42,22 +42,6 @@ type RocketMessage = {
     message: RocketMessagePayload
 }
 
-const messageStorage = new Map<string, Set<number>>()
-
-function isDuplicate(channel: string, messageNumber: number): boolean {
-    const channelMessages = messageStorage.get(channel)
-    if (!channelMessages) {
-        return false
-    }
-    return channelMessages.has(messageNumber)
-}
-
-function recordMessage(channel: string, messageNumber: number): void {
-    const channelMessages = messageStorage.get(channel) ?? new Set<number>()
-    channelMessages.add(messageNumber)
-    messageStorage.set(channel, channelMessages)
-}
-
 function validateMessage(data: unknown): RocketMessage {
     if (!data || typeof data !== 'object') {
         throw badRequest('Invalid message format')
@@ -111,13 +95,7 @@ function validateMessage(data: unknown): RocketMessage {
 post('messages', async (context, request) => {
     const rocketMessage = validateMessage(request.body)
 
-    const { channel, messageNumber, messageType } = rocketMessage.metadata
-
-    if (isDuplicate(channel, messageNumber)) {
-        return { status: 200 }
-    }
-
-    recordMessage(channel, messageNumber)
+    const { channel, messageType } = rocketMessage.metadata
 
     const eventTopic = 'rocket'
     const eventSubject = channel
