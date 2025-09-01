@@ -1,7 +1,46 @@
-import { allowErrorLogs, request } from '@riddance/service/test/http'
-import { getEmitted } from '@riddance/service/test/http'
+import { allowErrorLogs, request, getEmitted } from '@riddance/service/test/http'
 import { randomUUID } from 'node:crypto'
 import assert from 'node:assert/strict'
+
+function createRocketMessage(messageType: string, messagePayload: object, channel?: string) {
+    return {
+        metadata: {
+            channel: channel ?? randomUUID(),
+            messageNumber: Math.floor(Math.random() * 1000) + 1,
+            messageTime: '2022-02-02T19:39:05.86337+01:00',
+            messageType,
+        },
+        message: messagePayload,
+    }
+}
+
+function createLaunchedMessage(channel?: string) {
+    return createRocketMessage(
+        'RocketLaunched',
+        {
+            type: 'Falcon-9',
+            launchSpeed: 500,
+            mission: 'ARTEMIS',
+        },
+        channel,
+    )
+}
+
+function createSpeedIncreasedMessage(channel?: string) {
+    return createRocketMessage('RocketSpeedIncreased', { by: 3000 }, channel)
+}
+
+function createSpeedDecreasedMessage(channel?: string) {
+    return createRocketMessage('RocketSpeedDecreased', { by: 2500 }, channel)
+}
+
+function createExplodedMessage(channel?: string) {
+    return createRocketMessage('RocketExploded', { reason: 'PRESSURE_VESSEL_FAILURE' }, channel)
+}
+
+function createMissionChangedMessage(channel?: string) {
+    return createRocketMessage('RocketMissionChanged', { newMission: 'SHUTTLE_MIR' }, channel)
+}
 
 describe('messages', () => {
     it('should reject invalid JSON', async () => {
@@ -52,19 +91,7 @@ describe('messages', () => {
 
     it('should handle RocketLaunched message', async () => {
         const channel = randomUUID()
-        const message = {
-            metadata: {
-                channel,
-                messageNumber: 1,
-                messageTime: '2022-02-02T19:39:05.86337+01:00',
-                messageType: 'RocketLaunched',
-            },
-            message: {
-                type: 'Falcon-9',
-                launchSpeed: 500,
-                mission: 'ARTEMIS',
-            },
-        }
+        const message = createLaunchedMessage(channel)
 
         const response = await request({
             method: 'POST',
@@ -89,17 +116,7 @@ describe('messages', () => {
 
     it('should handle RocketSpeedIncreased message', async () => {
         const channel = randomUUID()
-        const message = {
-            metadata: {
-                channel,
-                messageNumber: 2,
-                messageTime: '2022-02-02T19:40:05.86337+01:00',
-                messageType: 'RocketSpeedIncreased',
-            },
-            message: {
-                by: 3000,
-            },
-        }
+        const message = createSpeedIncreasedMessage(channel)
 
         const response = await request({
             method: 'POST',
@@ -122,17 +139,7 @@ describe('messages', () => {
 
     it('should handle RocketSpeedDecreased message', async () => {
         const channel = randomUUID()
-        const message = {
-            metadata: {
-                channel,
-                messageNumber: 3,
-                messageTime: '2022-02-02T19:41:05.86337+01:00',
-                messageType: 'RocketSpeedDecreased',
-            },
-            message: {
-                by: 2500,
-            },
-        }
+        const message = createSpeedDecreasedMessage(channel)
 
         const response = await request({
             method: 'POST',
@@ -155,17 +162,7 @@ describe('messages', () => {
 
     it('should handle RocketExploded message', async () => {
         const channel = randomUUID()
-        const message = {
-            metadata: {
-                channel,
-                messageNumber: 4,
-                messageTime: '2022-02-02T19:42:05.86337+01:00',
-                messageType: 'RocketExploded',
-            },
-            message: {
-                reason: 'PRESSURE_VESSEL_FAILURE',
-            },
-        }
+        const message = createExplodedMessage(channel)
 
         const response = await request({
             method: 'POST',
@@ -188,17 +185,7 @@ describe('messages', () => {
 
     it('should handle RocketMissionChanged message', async () => {
         const channel = randomUUID()
-        const message = {
-            metadata: {
-                channel,
-                messageNumber: 5,
-                messageTime: '2022-02-02T19:43:05.86337+01:00',
-                messageType: 'RocketMissionChanged',
-            },
-            message: {
-                newMission: 'SHUTTLE_MIR',
-            },
-        }
+        const message = createMissionChangedMessage(channel)
 
         const response = await request({
             method: 'POST',
@@ -222,46 +209,17 @@ describe('messages', () => {
     it('should handle multiple messages from same channel', async () => {
         const channel = randomUUID()
 
-        // Send first message
-        const message1 = {
-            metadata: {
-                channel,
-                messageNumber: 1,
-                messageTime: '2022-02-02T19:50:05.86337+01:00',
-                messageType: 'RocketSpeedIncreased',
-            },
-            message: {
-                by: 1000,
-            },
-        }
-
         const response1 = await request({
             method: 'POST',
             uri: 'messages',
-            json: message1,
+            json: createSpeedIncreasedMessage(channel),
         })
-
         assert.strictEqual(response1.status, 200)
-
-        // Send second message
-        const message2 = {
-            metadata: {
-                channel,
-                messageNumber: 2,
-                messageTime: '2022-02-02T19:45:05.86337+01:00',
-                messageType: 'RocketLaunched',
-            },
-            message: {
-                type: 'Falcon-9',
-                launchSpeed: 500,
-                mission: 'ARTEMIS',
-            },
-        }
 
         const response2 = await request({
             method: 'POST',
             uri: 'messages',
-            json: message2,
+            json: createLaunchedMessage(channel),
         })
 
         assert.strictEqual(response2.status, 200)
