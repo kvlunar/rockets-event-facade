@@ -9,52 +9,82 @@ const MESSAGE_TYPES = {
     ROCKET_MISSION_CHANGED: 'RocketMissionChanged',
 } as const
 
-const VALID_MESSAGE_TYPES = Object.values(MESSAGE_TYPES)
-
 type MessageType = (typeof MESSAGE_TYPES)[keyof typeof MESSAGE_TYPES]
 
-type RocketMessageMetadata = {
+// Base metadata type
+type BaseRocketMessageMetadata = {
     channel: string
     messageNumber: number
     messageTime: string
-    messageType: MessageType
 }
 
+// Discriminated union types for each message
 type RocketLaunchedMessage = {
-    type: string
-    launchSpeed: number
-    mission: string
+    metadata: BaseRocketMessageMetadata & { messageType: typeof MESSAGE_TYPES.ROCKET_LAUNCHED }
+    message: {
+        type: string
+        launchSpeed: number
+        mission: string
+    }
 }
 
-type RocketSpeedChangedMessage = {
-    by: number
+type RocketSpeedIncreasedMessage = {
+    metadata: BaseRocketMessageMetadata & {
+        messageType: typeof MESSAGE_TYPES.ROCKET_SPEED_INCREASED
+    }
+    message: {
+        by: number
+    }
+}
+
+type RocketSpeedDecreasedMessage = {
+    metadata: BaseRocketMessageMetadata & {
+        messageType: typeof MESSAGE_TYPES.ROCKET_SPEED_DECREASED
+    }
+    message: {
+        by: number
+    }
 }
 
 type RocketExplodedMessage = {
-    reason: string
+    metadata: BaseRocketMessageMetadata & { messageType: typeof MESSAGE_TYPES.ROCKET_EXPLODED }
+    message: {
+        reason: string
+    }
 }
 
 type RocketMissionChangedMessage = {
-    newMission: string
+    metadata: BaseRocketMessageMetadata & {
+        messageType: typeof MESSAGE_TYPES.ROCKET_MISSION_CHANGED
+    }
+    message: {
+        newMission: string
+    }
 }
 
-type RocketMessagePayload =
+// Discriminated union of all message types
+type RocketMessage =
     | RocketLaunchedMessage
-    | RocketSpeedChangedMessage
+    | RocketSpeedIncreasedMessage
+    | RocketSpeedDecreasedMessage
     | RocketExplodedMessage
     | RocketMissionChangedMessage
 
-type RocketMessage = {
-    metadata: RocketMessageMetadata
-    message: RocketMessagePayload
+// Type guards for better type safety
+function isValidJson(value: unknown): value is Json {
+    return value !== undefined
 }
 
-function validateMessage(data: unknown): RocketMessage {
+function isMessageType(value: string): value is MessageType {
+    return Object.values(MESSAGE_TYPES).includes(value as MessageType)
+}
+
+function validateBaseMessage(data: unknown) {
     if (!data || typeof data !== 'object') {
         throw badRequest('Invalid message format')
     }
 
-    const message = objectSpreadable(data as Json)
+    const message = objectSpreadable(isValidJson(data) ? data : {})
 
     if (!message.metadata || typeof message.metadata !== 'object') {
         throw badRequest('Missing or invalid metadata')
@@ -63,7 +93,8 @@ function validateMessage(data: unknown): RocketMessage {
         throw badRequest('Missing or invalid message payload')
     }
 
-    const metadata = objectSpreadable(message.metadata as Json)
+    const metadata = objectSpreadable(isValidJson(message.metadata) ? message.metadata : {})
+    const payload = objectSpreadable(isValidJson(message.message) ? message.message : {})
 
     if (!metadata.channel || typeof metadata.channel !== 'string') {
         throw badRequest('Missing or invalid channel')
@@ -77,63 +108,157 @@ function validateMessage(data: unknown): RocketMessage {
     if (!metadata.messageType || typeof metadata.messageType !== 'string') {
         throw badRequest('Missing or invalid messageType')
     }
-    if (!VALID_MESSAGE_TYPES.includes(metadata.messageType as MessageType)) {
+    if (!isMessageType(metadata.messageType)) {
         throw badRequest('Invalid messageType')
     }
 
     return {
-        metadata: metadata as RocketMessageMetadata,
-        message: objectSpreadable(message.message as Json) as RocketMessagePayload,
+        metadata: {
+            channel: metadata.channel,
+            messageNumber: metadata.messageNumber,
+            messageTime: metadata.messageTime,
+            messageType: metadata.messageType,
+        },
+        payload,
     }
 }
 
+function validateMessage(data: unknown): RocketMessage {
+    const { metadata, payload } = validateBaseMessage(data)
+
+    switch (metadata.messageType) {
+        case MESSAGE_TYPES.ROCKET_LAUNCHED:
+            if (typeof payload.type !== 'string') {
+                throw badRequest('Missing or invalid rocket type')
+            }
+            if (typeof payload.launchSpeed !== 'number') {
+                throw badRequest('Missing or invalid launchSpeed')
+            }
+            if (typeof payload.mission !== 'string') {
+                throw badRequest('Missing or invalid mission')
+            }
+            return {
+                metadata: {
+                    ...metadata,
+                    messageType: MESSAGE_TYPES.ROCKET_LAUNCHED,
+                },
+                message: {
+                    type: payload.type,
+                    launchSpeed: payload.launchSpeed,
+                    mission: payload.mission,
+                },
+            } satisfies RocketLaunchedMessage
+
+        case MESSAGE_TYPES.ROCKET_SPEED_INCREASED:
+            if (typeof payload.by !== 'number') {
+                throw badRequest('Missing or invalid speed change amount')
+            }
+            return {
+                metadata: {
+                    ...metadata,
+                    messageType: MESSAGE_TYPES.ROCKET_SPEED_INCREASED,
+                },
+                message: { by: payload.by },
+            } satisfies RocketSpeedIncreasedMessage
+
+        case MESSAGE_TYPES.ROCKET_SPEED_DECREASED:
+            if (typeof payload.by !== 'number') {
+                throw badRequest('Missing or invalid speed change amount')
+            }
+            return {
+                metadata: {
+                    ...metadata,
+                    messageType: MESSAGE_TYPES.ROCKET_SPEED_DECREASED,
+                },
+                message: { by: payload.by },
+            } satisfies RocketSpeedDecreasedMessage
+
+        case MESSAGE_TYPES.ROCKET_EXPLODED:
+            if (typeof payload.reason !== 'string') {
+                throw badRequest('Missing or invalid explosion reason')
+            }
+            return {
+                metadata: {
+                    ...metadata,
+                    messageType: MESSAGE_TYPES.ROCKET_EXPLODED,
+                },
+                message: { reason: payload.reason },
+            } satisfies RocketExplodedMessage
+
+        case MESSAGE_TYPES.ROCKET_MISSION_CHANGED:
+            if (typeof payload.newMission !== 'string') {
+                throw badRequest('Missing or invalid new mission')
+            }
+            return {
+                metadata: {
+                    ...metadata,
+                    messageType: MESSAGE_TYPES.ROCKET_MISSION_CHANGED,
+                },
+                message: { newMission: payload.newMission },
+            } satisfies RocketMissionChangedMessage
+
+        default:
+            // TypeScript ensures exhaustive checking
+            throw badRequest('Unhandled message type')
+    }
+}
+
+// Type predicates for proper type narrowing
+function isRocketLaunchedMessage(message: RocketMessage): message is RocketLaunchedMessage {
+    return message.metadata.messageType === MESSAGE_TYPES.ROCKET_LAUNCHED
+}
+
+function isRocketSpeedIncreasedMessage(
+    message: RocketMessage,
+): message is RocketSpeedIncreasedMessage {
+    return message.metadata.messageType === MESSAGE_TYPES.ROCKET_SPEED_INCREASED
+}
+
+function isRocketSpeedDecreasedMessage(
+    message: RocketMessage,
+): message is RocketSpeedDecreasedMessage {
+    return message.metadata.messageType === MESSAGE_TYPES.ROCKET_SPEED_DECREASED
+}
+
+function isRocketExplodedMessage(message: RocketMessage): message is RocketExplodedMessage {
+    return message.metadata.messageType === MESSAGE_TYPES.ROCKET_EXPLODED
+}
+
+function isRocketMissionChangedMessage(
+    message: RocketMessage,
+): message is RocketMissionChangedMessage {
+    return message.metadata.messageType === MESSAGE_TYPES.ROCKET_MISSION_CHANGED
+}
+
 async function emitRocketEvent(context: Context, message: RocketMessage): Promise<void> {
-    const { channel, messageType } = message.metadata
     const eventTopic = 'rocket'
-    const eventSubject = channel
+    const eventSubject = message.metadata.channel
 
-    switch (messageType) {
-        case MESSAGE_TYPES.ROCKET_LAUNCHED: {
-            const payload = message.message as RocketLaunchedMessage
-            await context.emit(eventTopic, 'launched', eventSubject, {
-                type: payload.type,
-                launchSpeed: payload.launchSpeed,
-                mission: payload.mission,
-            })
-            break
-        }
-
-        case MESSAGE_TYPES.ROCKET_SPEED_INCREASED: {
-            const payload = message.message as RocketSpeedChangedMessage
-            await context.emit(eventTopic, 'speed-increased', eventSubject, {
-                by: payload.by,
-            })
-            break
-        }
-
-        case MESSAGE_TYPES.ROCKET_SPEED_DECREASED: {
-            const payload = message.message as RocketSpeedChangedMessage
-            await context.emit(eventTopic, 'speed-decreased', eventSubject, {
-                by: payload.by,
-            })
-            break
-        }
-
-        case MESSAGE_TYPES.ROCKET_EXPLODED: {
-            const payload = message.message as RocketExplodedMessage
-            await context.emit(eventTopic, 'exploded', eventSubject, {
-                reason: payload.reason,
-            })
-            break
-        }
-
-        case MESSAGE_TYPES.ROCKET_MISSION_CHANGED: {
-            const payload = message.message as RocketMissionChangedMessage
-            await context.emit(eventTopic, 'mission-changed', eventSubject, {
-                newMission: payload.newMission,
-            })
-            break
-        }
+    if (isRocketLaunchedMessage(message)) {
+        await context.emit(eventTopic, 'launched', eventSubject, {
+            type: message.message.type,
+            launchSpeed: message.message.launchSpeed,
+            mission: message.message.mission,
+        })
+    } else if (isRocketSpeedIncreasedMessage(message)) {
+        await context.emit(eventTopic, 'speed-increased', eventSubject, {
+            by: message.message.by,
+        })
+    } else if (isRocketSpeedDecreasedMessage(message)) {
+        await context.emit(eventTopic, 'speed-decreased', eventSubject, {
+            by: message.message.by,
+        })
+    } else if (isRocketExplodedMessage(message)) {
+        await context.emit(eventTopic, 'exploded', eventSubject, {
+            reason: message.message.reason,
+        })
+    } else if (isRocketMissionChangedMessage(message)) {
+        await context.emit(eventTopic, 'mission-changed', eventSubject, {
+            newMission: message.message.newMission,
+        })
+    } else {
+        // This should never happen due to validation
+        throw new Error('Unhandled message type')
     }
 }
 
