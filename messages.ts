@@ -3,7 +3,13 @@ import { badRequest, objectSpreadable, post } from '@riddance/service/http'
 
 post('messages', async (context, request) => {
     const data = validateMessage(request.body)
-    await context.emit('rocket', topicMap[data.type], data.metadata.channel, data.message)
+    await context.emit('rocket', topicMap[data.type], data.metadata.channel, {
+        meta: {
+            timestamp: data.metadata.messageTime,
+            sequence: data.metadata.messageNumber,
+        },
+        ...data.message,
+    })
 })
 
 type RocketData =

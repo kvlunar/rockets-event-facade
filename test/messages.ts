@@ -68,6 +68,10 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].type, 'launched')
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
+            meta: {
+                sequence: 4,
+                timestamp: '2022-02-02T19:39:05.86337+01:00',
+            },
             type: 'Falcon-9',
             launchSpeed: 500,
             mission: 'ARTEMIS',
@@ -93,6 +97,10 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].type, 'speed-increased')
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
+            meta: {
+                sequence: 4,
+                timestamp: '2022-02-02T19:39:05.86337+01:00',
+            },
             by: 3000,
         })
     })
@@ -116,6 +124,10 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].type, 'speed-decreased')
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
+            meta: {
+                sequence: 4,
+                timestamp: '2022-02-02T19:39:05.86337+01:00',
+            },
             by: 2500,
         })
     })
@@ -139,6 +151,10 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].type, 'exploded')
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
+            meta: {
+                sequence: 4,
+                timestamp: '2022-02-02T19:39:05.86337+01:00',
+            },
             reason: 'PRESSURE_VESSEL_FAILURE',
         })
     })
@@ -162,6 +178,10 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].type, 'mission-changed')
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
+            meta: {
+                sequence: 4,
+                timestamp: '2022-02-02T19:39:05.86337+01:00',
+            },
             newMission: 'SHUTTLE_MIR',
         })
     })
@@ -213,7 +233,7 @@ function createRocketMessage(messageType: string, messagePayload: object, channe
     return {
         metadata: {
             channel: channel ?? randomUUID(),
-            messageNumber: Math.floor(Math.random() * 1000) + 1,
+            messageNumber: 4,
             messageTime: '2022-02-02T19:39:05.86337+01:00',
             messageType,
         },
