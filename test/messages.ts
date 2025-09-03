@@ -69,7 +69,7 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
             meta: {
-                sequence: 4,
+                sequence: 3,
                 timestamp: '2022-02-02T19:39:05.86337+01:00',
             },
             type: 'Falcon-9',
@@ -98,7 +98,7 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
             meta: {
-                sequence: 4,
+                sequence: 3,
                 timestamp: '2022-02-02T19:39:05.86337+01:00',
             },
             by: 3000,
@@ -125,7 +125,7 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
             meta: {
-                sequence: 4,
+                sequence: 3,
                 timestamp: '2022-02-02T19:39:05.86337+01:00',
             },
             by: 2500,
@@ -152,7 +152,7 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
             meta: {
-                sequence: 4,
+                sequence: 3,
                 timestamp: '2022-02-02T19:39:05.86337+01:00',
             },
             reason: 'PRESSURE_VESSEL_FAILURE',
@@ -179,7 +179,7 @@ describe('messages', () => {
         assert.strictEqual(emitted[0].subject, channel)
         assert.deepStrictEqual(emitted[0].data, {
             meta: {
-                sequence: 4,
+                sequence: 3,
                 timestamp: '2022-02-02T19:39:05.86337+01:00',
             },
             newMission: 'SHUTTLE_MIR',

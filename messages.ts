@@ -6,7 +6,7 @@ post('messages', async (context, request) => {
     await context.emit('rocket', topicMap[data.type], data.metadata.channel, {
         meta: {
             timestamp: data.metadata.messageTime,
-            sequence: data.metadata.messageNumber,
+            sequence: data.metadata.messageNumber - 1,
         },
         ...data.message,
     })
